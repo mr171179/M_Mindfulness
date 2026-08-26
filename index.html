@@ -1,0 +1,847 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1417">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Práctica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --ink:#0E1417;
+  --panel:#16211F;
+  --panel-2:#1D2A28;
+  --line:#2A3937;
+  --brass:#C8A265;
+  --brass-dim:#8A7043;
+  --jade:#6E9B86;
+  --mist:#DEE8E3;
+  --dim:#8397918f;
+  --dim-solid:#839791;
+  --display:"Cormorant Garamond",Georgia,serif;
+  --body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--ink);color:var(--mist);font-family:var(--body)}
+body{
+  min-height:100dvh;
+  background:
+    radial-gradient(120% 70% at 50% -10%, #1B2A2C 0%, transparent 60%),
+    radial-gradient(90% 50% at 50% 110%, #17201C 0%, transparent 65%),
+    var(--ink);
+  padding-bottom:calc(84px + env(safe-area-inset-bottom));
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0}
+
+/* ---------- estructura ---------- */
+.app{max-width:640px;margin:0 auto;padding:0 20px}
+.topbar{
+  padding:calc(18px + env(safe-area-inset-top)) 20px 6px;
+  max-width:640px;margin:0 auto;
+  display:flex;align-items:baseline;justify-content:space-between;
+}
+.topbar h1{font-size:26px;letter-spacing:.02em}
+.eyebrow{
+  font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--dim-solid);font-weight:500;
+}
+.view{display:none;animation:fade .35s ease both}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- nav inferior ---------- */
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:rgba(14,20,23,.92);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+  padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+  display:flex;justify-content:center;gap:6px;
+}
+nav button{
+  flex:1;max-width:150px;padding:8px 4px;border-radius:14px;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  color:var(--dim-solid);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+}
+nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.4}
+nav button.on{color:var(--brass)}
+
+/* ---------- curso ---------- */
+.progress-block{
+  margin:22px 0 26px;padding:20px;border-radius:20px;
+  background:linear-gradient(160deg,var(--panel-2),var(--panel));
+  border:1px solid var(--line);
+}
+.progress-num{font-family:var(--display);font-size:44px;line-height:1;color:var(--brass)}
+.progress-num small{font-size:17px;color:var(--dim-solid)}
+.bar{height:3px;background:#0d1413;border-radius:2px;margin-top:16px;overflow:hidden}
+.bar span{display:block;height:100%;background:linear-gradient(90deg,var(--jade),var(--brass));
+  border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.progress-caption{margin-top:10px;font-size:12px;color:var(--dim-solid)}
+
+.group-label{
+  display:flex;align-items:center;gap:12px;margin:26px 0 10px;
+  font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim-solid);
+}
+.group-label:after{content:"";flex:1;height:1px;background:var(--line)}
+
+.track{
+  display:flex;align-items:center;gap:14px;padding:13px 14px;margin-bottom:7px;
+  border-radius:15px;background:var(--panel);border:1px solid transparent;
+  transition:background .2s,border-color .2s;
+}
+.track.playing{border-color:var(--brass-dim);background:var(--panel-2)}
+.track .idx{
+  font-family:var(--display);font-size:16px;color:var(--dim-solid);
+  width:22px;text-align:center;flex:none;
+}
+.track .name{flex:1;font-size:14.5px;line-height:1.35;min-width:0}
+.track.done .name{color:var(--dim-solid)}
+.check{
+  width:26px;height:26px;flex:none;border-radius:50%;
+  border:1.5px solid var(--line);display:grid;place-items:center;
+}
+.check svg{width:13px;height:13px;stroke:var(--ink);stroke-width:2.6;fill:none;opacity:0}
+.track.done .check{background:var(--brass);border-color:var(--brass)}
+.track.done .check svg{opacity:1}
+
+.empty{
+  text-align:center;padding:44px 20px;color:var(--dim-solid);font-size:14px;line-height:1.6;
+  border:1px dashed var(--line);border-radius:20px;margin-top:22px;
+}
+.empty strong{display:block;font-family:var(--display);font-size:21px;color:var(--mist);margin-bottom:8px;font-weight:400}
+
+/* reproductor curso */
+.player{
+  position:fixed;left:0;right:0;bottom:calc(69px + env(safe-area-inset-bottom));z-index:35;
+  background:rgba(22,33,31,.96);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+  transform:translateY(130%);transition:transform .32s cubic-bezier(.4,0,.2,1);
+}
+.player.up{transform:none}
+.player-in{max-width:640px;margin:0 auto;padding:11px 20px 13px;display:flex;align-items:center;gap:14px}
+.player .title{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player .time{font-size:11px;color:var(--dim-solid);font-variant-numeric:tabular-nums}
+.seek{
+  -webkit-appearance:none;appearance:none;width:100%;height:16px;background:none;margin:0;display:block;
+}
+.seek::-webkit-slider-runnable-track{height:2px;background:var(--line);border-radius:2px}
+.seek::-moz-range-track{height:2px;background:var(--line);border-radius:2px}
+.seek::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+  background:var(--brass);margin-top:-4.5px}
+.seek::-moz-range-thumb{width:11px;height:11px;border:none;border-radius:50%;background:var(--brass)}
+
+.icon-btn{
+  width:42px;height:42px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--brass);
+}
+.icon-btn svg{width:17px;height:17px;fill:var(--ink)}
+.icon-btn.ghost{background:none;border:1px solid var(--line)}
+.icon-btn.ghost svg{fill:var(--mist)}
+
+/* ---------- minutero ---------- */
+.timer-wrap{display:flex;flex-direction:column;align-items:center;padding-top:14px}
+.ring{position:relative;width:min(74vw,300px);aspect-ratio:1;margin:8px 0 4px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .bgc{stroke:#1b2725;fill:none;stroke-width:2}
+.ring .arc{stroke:var(--brass);fill:none;stroke-width:2;stroke-linecap:round;
+  transition:stroke-dashoffset .35s linear}
+.ring .breath{
+  position:absolute;inset:14%;border-radius:50%;
+  background:radial-gradient(circle,rgba(200,162,101,.16),rgba(110,155,134,.05) 60%,transparent 72%);
+  opacity:0;transition:opacity .8s;
+}
+.running .breath{opacity:1;animation:breathe 11s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(.82)}45%{transform:scale(1.06)}}
+.ring .readout{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;
+}
+.clock{font-family:var(--display);font-size:56px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.clock.over{color:var(--jade)}
+.ring-note{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim-solid)}
+
+.stepper{display:flex;align-items:center;gap:22px;margin:18px 0 6px}
+.stepper button{
+  width:44px;height:44px;border-radius:50%;border:1px solid var(--line);
+  font-size:22px;line-height:1;color:var(--brass);display:grid;place-items:center;
+}
+.stepper .val{font-family:var(--display);font-size:30px;min-width:96px;text-align:center}
+.stepper .val small{font-size:13px;color:var(--dim-solid);font-family:var(--body)}
+.presets{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px}
+.chip{
+  padding:7px 15px;border-radius:999px;border:1px solid var(--line);
+  font-size:12.5px;color:var(--dim-solid);
+}
+.chip.on{border-color:var(--brass);color:var(--brass)}
+.primary{
+  width:100%;max-width:300px;padding:16px;border-radius:16px;background:var(--brass);color:#12191a;
+  font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+}
+.secondary{
+  width:100%;max-width:300px;padding:15px;border-radius:16px;border:1px solid var(--line);
+  font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mist);margin-top:10px;
+}
+.timer-actions{display:flex;flex-direction:column;align-items:center;width:100%}
+
+/* ---------- sonidos ---------- */
+.sound-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0 8px}
+.sound{
+  padding:17px 15px;border-radius:18px;background:var(--panel);border:1px solid transparent;
+  text-align:left;transition:border-color .25s,background .25s;
+}
+.sound.on{border-color:var(--jade);background:var(--panel-2)}
+.sound .s-name{font-family:var(--display);font-size:20px;margin-bottom:3px}
+.sound .s-desc{font-size:11px;color:var(--dim-solid);line-height:1.4}
+.sound.on .s-name{color:var(--jade)}
+.vol-row{display:flex;align-items:center;gap:14px;margin:24px 0 6px}
+.vol-row label{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim-solid);flex:none}
+.note{font-size:12px;color:var(--dim-solid);line-height:1.65;margin-top:20px}
+
+/* ---------- editor ---------- */
+.link-btn{font-size:12px;color:var(--brass);letter-spacing:.04em;padding:6px 0}
+.sheet{
+  position:fixed;inset:0;z-index:60;background:rgba(8,12,13,.75);backdrop-filter:blur(6px);
+  display:none;align-items:flex-end;
+}
+.sheet.open{display:flex}
+.sheet-in{
+  width:100%;max-width:640px;margin:0 auto;background:var(--panel);
+  border-radius:26px 26px 0 0;border-top:1px solid var(--line);
+  padding:24px 20px calc(24px + env(safe-area-inset-bottom));
+  max-height:92dvh;overflow:auto;
+}
+.sheet h2{font-size:23px;margin-bottom:6px}
+.sheet p{font-size:12.5px;color:var(--dim-solid);line-height:1.65}
+code{background:#0d1413;padding:2px 6px;border-radius:5px;font-size:11.5px;color:var(--brass)}
+textarea{
+  width:100%;min-height:230px;margin-top:14px;padding:14px;border-radius:14px;
+  background:#0d1413;border:1px solid var(--line);color:var(--mist);
+  font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.7;resize:vertical;
+}
+.sheet-actions{display:flex;gap:10px;margin-top:14px}
+.sheet-actions button{flex:1;padding:14px;border-radius:14px;font-size:13px;letter-spacing:.06em}
+.sheet-actions .save{background:var(--brass);color:#12191a;font-weight:600}
+.sheet-actions .cancel{border:1px solid var(--line)}
+.toast{
+  position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translate(-50%,20px);
+  background:var(--panel-2);border:1px solid var(--line);color:var(--mist);
+  padding:11px 18px;border-radius:999px;font-size:12.5px;opacity:0;pointer-events:none;
+  transition:opacity .3s,transform .3s;z-index:80;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+
+<div class="topbar">
+  <h1 id="viewTitle">El curso</h1>
+  <span class="eyebrow" id="viewSub">Seguimiento</span>
+</div>
+
+<div class="app">
+
+  <!-- ================= CURSO ================= -->
+  <section class="view active" id="v-curso">
+    <div class="progress-block">
+      <div class="progress-num"><span id="pDone">0</span><small> / <span id="pTotal">0</span> sesiones</small></div>
+      <div class="bar"><span id="pBar" style="width:0%"></span></div>
+      <div class="progress-caption" id="pCaption">Aún no has empezado.</div>
+    </div>
+    <div id="courseList"></div>
+    <div style="text-align:center;margin:26px 0 10px">
+      <button class="link-btn" onclick="openEditor()">Editar el contenido del curso</button>
+    </div>
+  </section>
+
+  <!-- ================= MINUTERO ================= -->
+  <section class="view" id="v-timer">
+    <div class="timer-wrap" id="timerWrap">
+      <div class="ring">
+        <div class="breath"></div>
+        <svg viewBox="0 0 200 200">
+          <circle class="bgc" cx="100" cy="100" r="94"></circle>
+          <circle class="arc" id="arc" cx="100" cy="100" r="94"
+                  stroke-dasharray="590.6" stroke-dashoffset="0"></circle>
+        </svg>
+        <div class="readout">
+          <div class="clock" id="clock">10:00</div>
+          <div class="ring-note" id="ringNote">Preparado</div>
+        </div>
+      </div>
+
+      <div id="setupZone">
+        <div class="stepper">
+          <button onclick="bumpMin(-1)" aria-label="Un minuto menos">−</button>
+          <div class="val"><span id="minVal">10</span><small> min</small></div>
+          <button onclick="bumpMin(1)" aria-label="Un minuto más">+</button>
+        </div>
+        <div class="presets" id="presets"></div>
+      </div>
+
+      <div class="timer-actions">
+        <button class="primary" id="btnMain" onclick="mainAction()">Empezar</button>
+        <button class="secondary" id="btnEnd" style="display:none" onclick="endSession()">Terminar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SONIDOS ================= -->
+  <section class="view" id="v-sound">
+    <div class="sound-grid" id="soundGrid"></div>
+    <div class="vol-row">
+      <label for="ambVol">Volumen</label>
+      <input class="seek" type="range" id="ambVol" min="0" max="100" value="55">
+    </div>
+    <p class="note">Los sonidos se generan en el propio móvil, sin descargas ni conexión.
+    Puedes combinar varios y siguen sonando mientras escuchas el curso o meditas con el minutero.</p>
+  </section>
+
+</div>
+
+<!-- reproductor del curso -->
+<div class="player" id="player">
+  <div class="player-in">
+    <button class="icon-btn" id="pp" onclick="togglePlay()" aria-label="Reproducir o pausar">
+      <svg id="ppIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <div style="flex:1;min-width:0">
+      <div class="title" id="nowTitle">—</div>
+      <input class="seek" type="range" id="seek" min="0" max="1000" value="0">
+      <div style="display:flex;justify-content:space-between">
+        <span class="time" id="tCur">0:00</span><span class="time" id="tDur">0:00</span>
+      </div>
+    </div>
+    <button class="icon-btn ghost" onclick="closePlayer()" aria-label="Cerrar reproductor">
+      <svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7l1.4-1.4L10.6 10.6l6.3-6.3z"/></svg>
+    </button>
+  </div>
+</div>
+
+<nav>
+  <button class="on" data-v="curso" onclick="go('curso')">
+    <svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H5.5A1.5 1.5 0 0 1 4 15.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H14a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>
+    Curso
+  </button>
+  <button data-v="timer" onclick="go('timer')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>
+    Minutero
+  </button>
+  <button data-v="sound" onclick="go('sound')">
+    <svg viewBox="0 0 24 24"><path d="M3 14c3-6 6-6 9 0s6 6 9 0"/><path d="M3 8.5c3-5 6-5 9 0s6 5 9 0"/></svg>
+    Sonidos
+  </button>
+</nav>
+
+<!-- editor de contenido -->
+<div class="sheet" id="sheet">
+  <div class="sheet-in">
+    <h2>Contenido del curso</h2>
+    <p>Una línea por audio, con este formato:<br>
+    <code>tipo | título | enlace</code></p>
+    <p style="margin-top:10px">
+    Usa <code>S</code> para las sesiones (cuentan para el progreso),
+    <code>W</code> para la bienvenida y <code>F</code> para preguntas frecuentes.<br>
+    Los enlaces de Google Drive se convierten solos: pega el enlace de compartir tal cual.</p>
+    <textarea id="editArea" spellcheck="false"></textarea>
+    <div class="sheet-actions">
+      <button class="cancel" onclick="closeEditor()">Cancelar</button>
+      <button class="save" onclick="saveEditor()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ almacenamiento (con red de seguridad) ============ */
+const mem = {};
+const store = {
+  get(k, fb){ try{ const v = localStorage.getItem(k); return v==null ? (k in mem ? mem[k] : fb) : JSON.parse(v); }
+              catch(e){ return k in mem ? mem[k] : fb; } },
+  set(k, v){ mem[k]=v; try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._x); t._x=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ============ navegación ============ */
+const TITLES = { curso:['El curso','Seguimiento'], timer:['Minutero','Práctica libre'], sound:['Sonidos','Fondo'] };
+function go(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+  document.getElementById('v-'+v).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
+  document.getElementById('viewTitle').textContent = TITLES[v][0];
+  document.getElementById('viewSub').textContent = TITLES[v][1];
+}
+
+/* ============ CURSO ============ */
+const BASE = 'https://raw.githubusercontent.com/mr171179/M_Mindfulness/main/';
+const DEFAULT_TRACKS = [
+  { type:'W', title:'Bienvenida e información importante del curso', url: BASE+'AUDIOS%20EXTRA/01-bienvenida.mp3' },
+  { type:'W', title:'¿Qué es el mindfulness?', url: BASE+'AUDIOS%20EXTRA/02-que-es-mindfulness.mp3' },
+  { type:'W', title:'Cuatro pilares para iniciar a meditar', url: BASE+'AUDIOS%20EXTRA/03-cuatro-pilares-para-iniciar.mp3' },
+  { type:'W', title:'El secreto para crear el hábito de la meditación', url: BASE+'AUDIOS%20EXTRA/04-secreto-para-crear-habito.mp3' },
+  { type:'W', title:'El objetivo de este curso', url: BASE+'AUDIOS%20EXTRA/05-objetivo-este-curso.mp3' },
+
+  { type:'S', title:'Respira', url: BASE+'AUDIOS/01-respira.mp3' },
+  { type:'S', title:'Reconecta con tu cuerpo', url: BASE+'AUDIOS/02-reconecta-con-tu-cuerpo.mp3' },
+  { type:'S', title:'Deja marchar la tensión', url: BASE+'AUDIOS/03-deja-marchar-tension.mp3' },
+  { type:'S', title:'Luz relajante 1', url: BASE+'AUDIOS/04-luz-relajante.mp3' },
+  { type:'S', title:'Luz relajante 2', url: BASE+'AUDIOS/05-luz-relajante.mp3' },
+  { type:'S', title:'Abre tus sentidos 1', url: BASE+'AUDIOS/06-abre-tus-sentidos.mp3' },
+  { type:'S', title:'Abre tus sentidos 2', url: BASE+'AUDIOS/07-abre-tus-sentidos.mp3' },
+  { type:'S', title:'El refugio del corazón', url: BASE+'AUDIOS/08-refugio-del-corazon.mp3' },
+  { type:'S', title:'Respirar con el corazón 1', url: BASE+'AUDIOS/09-respirar-con-corazon.mp3' },
+  { type:'S', title:'Respirar con el corazón 2', url: BASE+'AUDIOS/10-respirar-con-corazon.mp3' },
+  { type:'S', title:'Escuchar al corazón', url: BASE+'AUDIOS/11-escuchar-corazon.mp3' },
+  { type:'S', title:'Respira esperanza', url: BASE+'AUDIOS/12-respira-esperanza.mp3' },
+  { type:'S', title:'Afirmaciones positivas 1', url: BASE+'AUDIOS/13-afirmaciones-positivas.mp3' },
+  { type:'S', title:'Afirmaciones positivas 2', url: BASE+'AUDIOS/14-afirmaciones-positivas.mp3' },
+  { type:'S', title:'Afirmaciones positivas 3', url: BASE+'AUDIOS/15-afirmaciones-positivas.mp3' },
+  { type:'S', title:'Darte cuenta 1', url: BASE+'AUDIOS/16-darte-cuenta.mp3' },
+  { type:'S', title:'Darte cuenta 2', url: BASE+'AUDIOS/17-darte-cuenta.mp3' },
+  { type:'S', title:'Observa tus pensamientos 1', url: BASE+'AUDIOS/18-observa-tus-pensamientos.mp3' },
+  { type:'S', title:'Observa tus pensamientos 2', url: BASE+'AUDIOS/19-observa-tus-pensamientos.mp3' },
+  { type:'S', title:'Trátate con amor', url: BASE+'AUDIOS/20-tratate-con-amor.mp3' },
+  { type:'S', title:'Seguridad interior', url: BASE+'AUDIOS/21-seguridad-interior.mp3' },
+  { type:'S', title:'Creando un espacio de aceptación 1', url: BASE+'AUDIOS/22-creando-espacio-aceptacion.mp3' },
+  { type:'S', title:'Creando un espacio de aceptación 2', url: BASE+'AUDIOS/23-creando-espacio-aceptacion.mp3' },
+  { type:'S', title:'Bienestar recordado 1', url: BASE+'AUDIOS/24-bienestar-recordado.mp3' },
+  { type:'S', title:'Bienestar recordado 2', url: BASE+'AUDIOS/25-bienestar-recordado.mp3' },
+  { type:'S', title:'Acercándote a lo agradable 1', url: BASE+'AUDIOS/26-acercandote-a-lo-agradable.mp3' },
+  { type:'S', title:'Acercándote a lo agradable 2', url: BASE+'AUDIOS/27-acercandote-a-lo-agradable.mp3' },
+  { type:'S', title:'Un océano de emoción 1', url: BASE+'AUDIOS/28-oceano-emocion.mp3' },
+  { type:'S', title:'Un océano de emoción 2', url: BASE+'AUDIOS/29-oceano-emocion.mp3' },
+  { type:'S', title:'El mensaje de tus emociones', url: BASE+'AUDIOS/30-mensaje-tus-emociones.mp3' },
+  { type:'S', title:'Reenfocando la tristeza 1', url: BASE+'AUDIOS/31-reenfocando-tristeza.mp3' },
+  { type:'S', title:'Reenfocando la tristeza 2', url: BASE+'AUDIOS/32-reenfocando-tristeza.mp3' },
+  { type:'S', title:'Gratitud 1', url: BASE+'AUDIOS/33-gratitud.mp3' },
+  { type:'S', title:'Gratitud 2', url: BASE+'AUDIOS/34-gratitud.mp3' },
+  { type:'S', title:'Gratitud 3', url: BASE+'AUDIOS/35-gratitud.mp3' },
+  { type:'S', title:'Gratitud 4', url: BASE+'AUDIOS/36-gratitud.mp3' },
+  { type:'S', title:'Compasión 1', url: BASE+'AUDIOS/37-compasion.mp3' },
+  { type:'S', title:'Compasión 2', url: BASE+'AUDIOS/38-compasion.mp3' },
+  { type:'S', title:'Compasión 3', url: BASE+'AUDIOS/39-compasion.mp3' },
+  { type:'S', title:'Compasión 4', url: BASE+'AUDIOS/40-compasion.mp3' },
+  { type:'S', title:'Foco abierto 1', url: BASE+'AUDIOS/41-foco-abierto.mp3' },
+  { type:'S', title:'Foco abierto 2', url: BASE+'AUDIOS/42-foco-abierto.mp3' },
+  { type:'S', title:'Sesión extra 1', url: BASE+'AUDIOS/43-extra.mp3' },
+  { type:'S', title:'Sesión extra 2', url: BASE+'AUDIOS/44-extra.mp3' },
+  { type:'S', title:'Sesión extra 3', url: BASE+'AUDIOS/45-extra.mp3' },
+
+  { type:'F', title:'¿El mindfulness me puede ayudar con la ansiedad, la depresión o el insomnio?', url: BASE+'AUDIOS%20EXTRA/47-mindfulness-me-puede-ayudar.mp3' },
+  { type:'F', title:'¿Por qué al practicar bostezo o se me caen las lágrimas?', url: BASE+'AUDIOS%20EXTRA/48-por-que-practicar-bostezo.mp3' },
+  { type:'F', title:'¿Por qué me da sueño y me duermo durante mis prácticas?', url: BASE+'AUDIOS%20EXTRA/49-por-que-me-da.mp3' },
+  { type:'F', title:'¿Por qué no logro controlar mi mente? Durante las meditaciones mi mente no deja de pensar y pensar.', url: BASE+'AUDIOS%20EXTRA/50-por-que-no-logro.mp3' },
+  { type:'F', title:'¿Los niños pueden practicar mindfulness?', url: BASE+'AUDIOS%20EXTRA/00-los-ninos-pueden-practicar.mp3' },
+  { type:'F', title:'¿Por qué se tiene que elegir una hora específica para hacer mindfulness? ¿Qué pasa si necesito cambiar mi hora?', url: BASE+'AUDIOS%20EXTRA/00-por-que-se-tiene.mp3' },
+  { type:'F', title:'Preguntas y respuestas en directo', url: BASE+'AUDIOS%20EXTRA/03-preguntas-respuestas-en-directo.mp3' },
+];
+let tracks = store.get('mf.tracks', DEFAULT_TRACKS);
+let done   = new Set(store.get('mf.done', []));
+const audio = new Audio();
+audio.preload = 'none';
+let currentId = null;
+
+function driveDirect(url){
+  const m = String(url).match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?[^ ]*id=)([\w-]{20,})/);
+  return m ? 'https://drive.google.com/uc?export=download&id=' + m[1] : url;
+}
+function idOf(t){ return t.title.toLowerCase().replace(/\s+/g,'_').slice(0,60); }
+
+function renderCourse(){
+  const list = document.getElementById('courseList');
+  const welcome  = tracks.filter(t=>t.type==='W');
+  const faq      = tracks.filter(t=>t.type==='F');
+  const sessions = tracks.filter(t=>t.type==='S');
+
+  if(!tracks.length){
+    list.innerHTML = `<div class="empty"><strong>Todavía no hay audios</strong>
+      Añade los capítulos del curso con sus enlaces y aparecerán aquí, listos para escuchar y marcar.</div>`;
+  } else {
+    let html = '';
+    if(welcome.length){
+      html += `<div class="group-label">Bienvenida</div>`;
+      welcome.forEach(t=> html += trackHTML(t,''));
+    }
+    if(sessions.length){
+      html += `<div class="group-label">Sesiones</div>`;
+      sessions.forEach((t,i)=> html += trackHTML(t, String(i+1).padStart(2,'0')));
+    }
+    if(faq.length){
+      html += `<div class="group-label">Preguntas frecuentes</div>`;
+      faq.forEach(t=> html += trackHTML(t,''));
+    }
+    list.innerHTML = html;
+  }
+
+  const total = sessions.length;
+  const d = sessions.filter(t=>done.has(idOf(t))).length;
+  document.getElementById('pDone').textContent  = d;
+  document.getElementById('pTotal').textContent = total;
+  document.getElementById('pBar').style.width   = (total ? d/total*100 : 0) + '%';
+  document.getElementById('pCaption').textContent =
+    !total ? 'Añade las sesiones para ver tu avance.'
+    : d===0 ? 'Aún no has empezado.'
+    : d===total ? 'Curso completo. Ahora toca sostener el hábito.'
+    : 'Te quedan ' + (total-d) + (total-d===1 ? ' sesión.' : ' sesiones.');
+}
+function trackHTML(t, idx){
+  const id = idOf(t);
+  const cls = (done.has(id)?' done':'') + (currentId===id?' playing':'');
+  return `<div class="track${cls}">
+    <span class="idx">${idx || '·'}</span>
+    <span class="name" onclick="play('${id}')">${escapeHTML(t.title)}</span>
+    <button class="check" onclick="toggleDone('${id}')" aria-label="Marcar como completado">
+      <svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+    </button>
+  </div>`;
+}
+function escapeHTML(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function toggleDone(id){
+  done.has(id) ? done.delete(id) : done.add(id);
+  store.set('mf.done', [...done]);
+  renderCourse();
+}
+function play(id){
+  const t = tracks.find(x=>idOf(x)===id); if(!t) return;
+  if(currentId===id){ togglePlay(); return; }
+  currentId = id;
+  audio.src = driveDirect(t.url);
+  audio.play().catch(()=>toast('No se pudo abrir el audio. Revisa el enlace.'));
+  document.getElementById('nowTitle').textContent = t.title;
+  document.getElementById('player').classList.add('up');
+  renderCourse();
+}
+function togglePlay(){ audio.paused ? audio.play().catch(()=>{}) : audio.pause(); }
+function closePlayer(){
+  audio.pause(); audio.removeAttribute('src'); audio.load();
+  currentId = null;
+  document.getElementById('player').classList.remove('up');
+  renderCourse();
+}
+audio.addEventListener('play', ()=> setPP(true));
+audio.addEventListener('pause',()=> setPP(false));
+audio.addEventListener('ended',()=>{
+  if(currentId && !done.has(currentId)){ done.add(currentId); store.set('mf.done',[...done]); toast('Marcado como completado'); }
+  renderCourse();
+});
+function setPP(playing){
+  document.getElementById('ppIcon').innerHTML = playing
+    ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+}
+const seek = document.getElementById('seek');
+let dragging = false;
+seek.addEventListener('input', ()=> dragging = true);
+seek.addEventListener('change', ()=>{
+  if(audio.duration) audio.currentTime = seek.value/1000*audio.duration;
+  dragging = false;
+});
+audio.addEventListener('timeupdate', ()=>{
+  if(!audio.duration || dragging) return;
+  seek.value = audio.currentTime/audio.duration*1000;
+  document.getElementById('tCur').textContent = fmt(audio.currentTime);
+  document.getElementById('tDur').textContent = fmt(audio.duration);
+});
+function fmt(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+
+/* editor */
+function openEditor(){
+  document.getElementById('editArea').value =
+    tracks.map(t=>`${t.type} | ${t.title} | ${t.url}`).join('\n');
+  document.getElementById('sheet').classList.add('open');
+}
+function closeEditor(){ document.getElementById('sheet').classList.remove('open'); }
+function saveEditor(){
+  const lines = document.getElementById('editArea').value.split('\n');
+  const out = [];
+  for(const raw of lines){
+    const line = raw.trim(); if(!line) continue;
+    const p = line.split('|').map(x=>x.trim());
+    if(p.length < 2) continue;
+    const t0 = p[0].toLowerCase();
+    const type = /^w/.test(t0) ? 'W' : /^f/.test(t0) ? 'F' : 'S';
+    out.push({ type, title: p[1] || 'Sin título', url: p[2] || '' });
+  }
+  tracks = out; store.set('mf.tracks', tracks);
+  closeEditor(); renderCourse(); toast('Contenido guardado');
+}
+
+/* ============ AUDIO SINTETIZADO ============ */
+let ctx = null;
+function AC(){
+  if(!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)();
+  if(ctx.state==='suspended') ctx.resume();
+  return ctx;
+}
+function noiseBuf(c, kind){
+  const len = c.sampleRate*4, b = c.createBuffer(1,len,c.sampleRate), d = b.getChannelData(0);
+  let last = 0;
+  for(let i=0;i<len;i++){
+    const w = Math.random()*2-1;
+    if(kind==='brown'){ last = (last + 0.02*w)/1.02; d[i] = last*3.4; } else d[i] = w*0.6;
+  }
+  return b;
+}
+function reverb(c, out){
+  const inp = c.createGain();
+  [[0.211,0.42],[0.317,0.36],[0.093,0.3]].forEach(([t,f])=>{
+    const dl=c.createDelay(1), fb=c.createGain(), lp=c.createBiquadFilter();
+    dl.delayTime.value=t; fb.gain.value=f; lp.type='lowpass'; lp.frequency.value=2400;
+    inp.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(out);
+  });
+  return inp;
+}
+
+/* --- gong tibetano --- */
+function gong(vol=0.9){
+  const c = AC(), now = c.currentTime;
+  const out = c.createGain(); out.gain.value = vol; out.connect(c.destination);
+  const lp = c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1100; lp.Q.value=.5; lp.connect(out);
+  const rv = reverb(c, out); lp.connect(rv);
+  const f0 = 73;
+  [1,1.48,2.11,2.94,4.09,5.32,7.1].forEach((p,i)=>{
+    const o = c.createOscillator(), g = c.createGain();
+    o.type='sine'; o.frequency.value = f0*p*(1+(Math.random()-.5)*.006);
+    const amp = 0.85/Math.pow(i+1.25,1.15);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(amp, now+0.012+i*0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 12 - i*1.2);
+    o.connect(g); g.connect(lp); o.start(now); o.stop(now+13);
+  });
+  const n = c.createBufferSource(); n.buffer = noiseBuf(c,'brown');
+  const ng = c.createGain(), nf = c.createBiquadFilter();
+  nf.type='bandpass'; nf.frequency.value=260; nf.Q.value=1.2;
+  ng.gain.setValueAtTime(0.5, now); ng.gain.exponentialRampToValueAtTime(0.0001, now+0.7);
+  n.connect(nf); nf.connect(ng); ng.connect(lp); n.start(now); n.stop(now+1);
+}
+
+/* --- sonidos ambientales --- */
+const SOUNDS = [
+  { id:'mar',     name:'Mar',      desc:'Olas lentas rompiendo' },
+  { id:'lluvia',  name:'Lluvia',   desc:'Lluvia fina y constante' },
+  { id:'bosque',  name:'Bosque',   desc:'Pájaros y brisa entre hojas' },
+  { id:'arpa',    name:'Arpa',     desc:'Notas sueltas, sin melodía' },
+  { id:'piano',   name:'Piano',    desc:'Acordes graves muy espaciados' },
+  { id:'cuencos', name:'Cuencos',  desc:'Zumbido continuo de cuencos' },
+];
+const active = {};
+let ambMaster = null;
+function master(){
+  const c = AC();
+  if(!ambMaster){ ambMaster = c.createGain(); ambMaster.gain.value = store.get('mf.vol',55)/100*0.9; ambMaster.connect(c.destination); }
+  return ambMaster;
+}
+function loopNoise(c, kind){ const s=c.createBufferSource(); s.buffer=noiseBuf(c,kind); s.loop=true; s.start(); return s; }
+function lfo(c, param, rate, depth, base){
+  const o=c.createOscillator(), g=c.createGain();
+  o.frequency.value=rate; g.gain.value=depth; param.value=base;
+  o.connect(g); g.connect(param); o.start(); return o;
+}
+function build(id){
+  const c = AC(), out = master(), nodes = [], timers = [];
+  const bus = c.createGain(); bus.gain.value = 0; bus.connect(out);
+  bus.gain.linearRampToValueAtTime(1, c.currentTime + 2.5);
+
+  if(id==='mar'){
+    const s = loopNoise(c,'brown'), f = c.createBiquadFilter(), g = c.createGain();
+    f.type='lowpass'; f.frequency.value=460;
+    s.connect(f); f.connect(g); g.connect(bus);
+    nodes.push(s, lfo(c, g.gain, 0.062, 0.3, 0.42), lfo(c, f.frequency, 0.05, 180, 470));
+    const s2 = loopNoise(c,'white'), f2=c.createBiquadFilter(), g2=c.createGain();
+    f2.type='highpass'; f2.frequency.value=1800; g2.gain.value=0.03;
+    s2.connect(f2); f2.connect(g2); g2.connect(bus);
+    nodes.push(s2, lfo(c, g2.gain, 0.062, 0.028, 0.032));
+  }
+  if(id==='lluvia'){
+    const s = loopNoise(c,'white'), hp=c.createBiquadFilter(), lp=c.createBiquadFilter(), g=c.createGain();
+    hp.type='highpass'; hp.frequency.value=900; lp.type='lowpass'; lp.frequency.value=7000; g.gain.value=0.16;
+    s.connect(hp); hp.connect(lp); lp.connect(g); g.connect(bus);
+    const s2 = loopNoise(c,'brown'), lp2=c.createBiquadFilter(), g2=c.createGain();
+    lp2.type='lowpass'; lp2.frequency.value=180; g2.gain.value=0.14;
+    s2.connect(lp2); lp2.connect(g2); g2.connect(bus);
+    nodes.push(s, s2, lfo(c, g.gain, 0.09, 0.035, 0.16));
+  }
+  if(id==='bosque'){
+    const s = loopNoise(c,'brown'), f=c.createBiquadFilter(), g=c.createGain();
+    f.type='lowpass'; f.frequency.value=340; g.gain.value=0.1;
+    s.connect(f); f.connect(g); g.connect(bus); nodes.push(s, lfo(c, g.gain, 0.04, 0.05, 0.1));
+    const rv = reverb(c, bus);
+    const chirp = ()=>{
+      const n = 1 + Math.floor(Math.random()*3);
+      for(let k=0;k<n;k++){
+        const t0 = c.currentTime + k*(0.09+Math.random()*0.07);
+        const o=c.createOscillator(), gg=c.createGain();
+        const base = 2300 + Math.random()*1900;
+        o.type='sine';
+        o.frequency.setValueAtTime(base, t0);
+        o.frequency.exponentialRampToValueAtTime(base*(1.25+Math.random()*.5), t0+0.045);
+        o.frequency.exponentialRampToValueAtTime(base*0.82, t0+0.11);
+        gg.gain.setValueAtTime(0.0001,t0);
+        gg.gain.exponentialRampToValueAtTime(0.075, t0+0.012);
+        gg.gain.exponentialRampToValueAtTime(0.0001, t0+0.13);
+        o.connect(gg); gg.connect(bus); gg.connect(rv); o.start(t0); o.stop(t0+0.2);
+      }
+      timers.push(setTimeout(chirp, 1400 + Math.random()*5200));
+    };
+    timers.push(setTimeout(chirp, 900));
+  }
+  if(id==='arpa' || id==='piano'){
+    const rv = reverb(c, bus);
+    const isHarp = id==='arpa';
+    const scale = isHarp ? [329.63,392,440,493.88,587.33,659.25,783.99]
+                         : [130.81,146.83,174.61,196,220,261.63,293.66];
+    const note = ()=>{
+      const reps = isHarp ? 1 : (Math.random()<0.4 ? 3 : 1);
+      for(let k=0;k<reps;k++){
+        const t0 = c.currentTime + k*0.02;
+        const f = scale[Math.floor(Math.random()*scale.length)] * (Math.random()<0.15?2:1);
+        [[1,1],[2,0.28],[3,0.11]].forEach(([mult,amp])=>{
+          const o=c.createOscillator(), gg=c.createGain();
+          o.type = isHarp ? 'triangle' : 'sine';
+          o.frequency.value = f*mult*(1+(Math.random()-.5)*.002);
+          const peak = (isHarp?0.10:0.13)*amp/(reps>1?1.7:1);
+          const dec  = isHarp ? 2.8 : 5.5;
+          gg.gain.setValueAtTime(0.0001,t0);
+          gg.gain.exponentialRampToValueAtTime(peak, t0 + (isHarp?0.008:0.05));
+          gg.gain.exponentialRampToValueAtTime(0.0001, t0+dec);
+          o.connect(gg); gg.connect(bus); gg.connect(rv); o.start(t0); o.stop(t0+dec+0.2);
+        });
+      }
+      timers.push(setTimeout(note, isHarp ? 1100+Math.random()*2600 : 3500+Math.random()*4500));
+    };
+    timers.push(setTimeout(note, 600));
+  }
+  if(id==='cuencos'){
+    const rv = reverb(c, bus);
+    [110,110.55,164.81,220.9].forEach((f,i)=>{
+      const o=c.createOscillator(), g=c.createGain(), lp=c.createBiquadFilter();
+      lp.type='lowpass'; lp.frequency.value=900;
+      o.type='sine'; o.frequency.value=f;
+      o.connect(g); g.connect(lp); lp.connect(bus); lp.connect(rv);
+      o.start(); nodes.push(o, lfo(c, g.gain, 0.03+i*0.017, 0.035, 0.055));
+    });
+  }
+  return { bus, nodes, timers };
+}
+function toggleSound(id, el){
+  if(active[id]){
+    const a = active[id]; delete active[id];
+    const c = AC();
+    a.bus.gain.cancelScheduledValues(c.currentTime);
+    a.bus.gain.setValueAtTime(a.bus.gain.value, c.currentTime);
+    a.bus.gain.linearRampToValueAtTime(0.0001, c.currentTime+1.6);
+    a.timers.forEach(clearTimeout);
+    setTimeout(()=>{ a.nodes.forEach(n=>{ try{n.stop()}catch(e){} }); a.bus.disconnect(); }, 1900);
+    el.classList.remove('on');
+  } else {
+    active[id] = build(id);
+    el.classList.add('on');
+  }
+}
+document.getElementById('soundGrid').innerHTML = SOUNDS.map(s=>
+  `<button class="sound" onclick="toggleSound('${s.id}',this)">
+     <div class="s-name">${s.name}</div><div class="s-desc">${s.desc}</div></button>`).join('');
+const volEl = document.getElementById('ambVol');
+volEl.value = store.get('mf.vol',55);
+volEl.addEventListener('input', ()=>{
+  store.set('mf.vol', +volEl.value);
+  if(ambMaster) ambMaster.gain.value = volEl.value/100*0.9;
+});
+
+/* ============ MINUTERO ============ */
+const PRESETS = [3,5,10,15,20,30,45];
+let mins = store.get('mf.mins',10);
+let state = 'idle';           // idle | running | paused
+let remain = mins*60, over = 0, tick = null, gonged = false, wake = null;
+const CIRC = 590.6;
+
+document.getElementById('presets').innerHTML =
+  PRESETS.map(p=>`<button class="chip" data-p="${p}" onclick="setMin(${p})">${p} min</button>`).join('');
+
+function setMin(v){ mins = Math.max(1, Math.min(180, v)); store.set('mf.mins',mins); resetDisplay(); }
+function bumpMin(d){ setMin(mins + d); }
+function resetDisplay(){
+  remain = mins*60; over = 0; gonged = false;
+  document.getElementById('minVal').textContent = mins;
+  document.querySelectorAll('#presets .chip').forEach(c=>c.classList.toggle('on', +c.dataset.p===mins));
+  paint();
+}
+function paint(){
+  const cl = document.getElementById('clock');
+  if(over>0){ cl.textContent = '+' + clockFmt(over); cl.classList.add('over'); }
+  else { cl.textContent = clockFmt(remain); cl.classList.remove('over'); }
+  const frac = over>0 ? 0 : remain/(mins*60);
+  document.getElementById('arc').style.strokeDashoffset = CIRC*(1-frac);
+}
+function clockFmt(s){ s=Math.max(0,Math.round(s));
+  const h=Math.floor(s/3600), m=Math.floor(s%3600/60), q=s%60;
+  return (h? h+':'+String(m).padStart(2,'0') : m) + ':' + String(q).padStart(2,'0'); }
+
+function mainAction(){
+  if(state==='idle'){ start(); }
+  else if(state==='running'){ pause(); }
+  else { resume(); }
+}
+async function start(){
+  AC(); gong(0.9);
+  state='running'; over=0; gonged=false;
+  document.getElementById('setupZone').style.display='none';
+  document.getElementById('btnEnd').style.display='block';
+  document.getElementById('btnMain').textContent='Pausar';
+  document.getElementById('ringNote').textContent='En práctica';
+  document.getElementById('timerWrap').classList.add('running');
+  try{ wake = await navigator.wakeLock.request('screen'); }catch(e){}
+  run();
+}
+function run(){
+  clearInterval(tick);
+  tick = setInterval(()=>{
+    if(state!=='running') return;
+    if(remain>0){
+      remain--;
+      if(remain===0 && !gonged){
+        gonged=true; gong(0.9);
+        document.getElementById('ringNote').textContent='Tiempo cumplido';
+      }
+    } else over++;
+    paint();
+  },1000);
+}
+function pause(){
+  state='paused';
+  document.getElementById('btnMain').textContent='Reanudar';
+  document.getElementById('ringNote').textContent='En pausa';
+  document.getElementById('timerWrap').classList.remove('running');
+}
+function resume(){
+  state='running';
+  document.getElementById('btnMain').textContent='Pausar';
+  document.getElementById('ringNote').textContent = gonged ? 'Tiempo cumplido' : 'En práctica';
+  document.getElementById('timerWrap').classList.add('running');
+}
+function endSession(){
+  clearInterval(tick); state='idle';
+  if(wake){ try{ wake.release(); }catch(e){} wake=null; }
+  document.getElementById('setupZone').style.display='block';
+  document.getElementById('btnEnd').style.display='none';
+  document.getElementById('btnMain').textContent='Empezar';
+  document.getElementById('ringNote').textContent='Preparado';
+  document.getElementById('timerWrap').classList.remove('running');
+  resetDisplay();
+}
+document.addEventListener('visibilitychange', async ()=>{
+  if(document.visibilityState==='visible' && state==='running' && !wake){
+    try{ wake = await navigator.wakeLock.request('screen'); }catch(e){}
+  }
+});
+
+/* ============ arranque ============ */
+resetDisplay();
+renderCourse();
+</script>
