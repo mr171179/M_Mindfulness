@@ -196,6 +196,22 @@ nav button.on{color:var(--brass)}
 .sound .s-name{font-family:var(--display);font-size:20px;margin-bottom:3px}
 .sound .s-desc{font-size:11px;color:var(--dim-solid);line-height:1.4}
 .sound.on .s-name{color:var(--jade)}
+
+.music-track{
+  display:flex;align-items:center;gap:13px;padding:13px 14px;margin-bottom:8px;
+  border-radius:15px;background:var(--panel);border:1px solid transparent;
+  transition:border-color .25s,background .25s;
+}
+.music-track.on{border-color:var(--brass-dim);background:var(--panel-2)}
+.music-track .mp{
+  width:38px;height:38px;flex:none;border-radius:50%;background:var(--brass);
+  display:grid;place-items:center;
+}
+.music-track .mp svg{width:14px;height:14px;fill:var(--ink)}
+.music-track .m-info{flex:1;min-width:0}
+.music-track .m-name{font-size:13.5px;line-height:1.35}
+.music-track.on .m-name{color:var(--brass)}
+.music-track .m-tag{font-size:10.5px;color:var(--dim-solid);margin-top:2px}
 .vol-row{display:flex;align-items:center;gap:14px;margin:24px 0 6px}
 .vol-row label{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim-solid);flex:none}
 .note{font-size:12px;color:var(--dim-solid);line-height:1.65;margin-top:20px}
@@ -299,6 +315,10 @@ textarea{
     </div>
     <p class="note">Los sonidos se generan en el propio móvil, sin descargas ni conexión.
     Puedes combinar varios y siguen sonando mientras escuchas el curso o meditas con el minutero.</p>
+
+    <div class="group-label" style="margin-top:30px">Música</div>
+    <div id="musicList"></div>
+    <p class="note">Pistas reales (no generadas), en bucle. Solo suena una a la vez, pero es independiente del curso y del minutero.</p>
   </section>
 
 </div>
@@ -602,22 +622,33 @@ function reverb(c, out){
 function gong(vol=0.9){
   const c = AC(), now = c.currentTime;
   const out = c.createGain(); out.gain.value = vol; out.connect(c.destination);
-  const lp = c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1100; lp.Q.value=.5; lp.connect(out);
+  const lp = c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=780; lp.Q.value=.4; lp.connect(out);
   const rv = reverb(c, out); lp.connect(rv);
-  const f0 = 73;
-  [1,1.48,2.11,2.94,4.09,5.32,7.1].forEach((p,i)=>{
+  const f0 = 58; // más grave, menos "campana de cocina"
+  // parciales inarmónicos pero suaves, con decaimientos largos escalonados
+  [1,1.19,1.71,2.35,2.98,3.94,5.12,6.6].forEach((p,i)=>{
     const o = c.createOscillator(), g = c.createGain();
-    o.type='sine'; o.frequency.value = f0*p*(1+(Math.random()-.5)*.006);
-    const amp = 0.85/Math.pow(i+1.25,1.15);
+    o.type='sine'; o.frequency.value = f0*p*(1+(Math.random()-.5)*.004);
+    const amp = 0.75/Math.pow(i+1.35,1.05);
+    const attack = 0.35 + i*0.05;      // ataque progresivo: primero grave, luego brillo
+    const dur = 16 - i*0.9;             // cola larga, hasta 16s
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(amp, now+0.012+i*0.006);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 12 - i*1.2);
-    o.connect(g); g.connect(lp); o.start(now); o.stop(now+13);
+    g.gain.linearRampToValueAtTime(amp, now+attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+dur);
+    o.connect(g); g.connect(lp); o.start(now); o.stop(now+dur+0.5);
   });
+  // cuerpo grave sostenido, muy suave, para dar "duración" perceptible
+  const sub = c.createOscillator(), subg = c.createGain();
+  sub.type='sine'; sub.frequency.value = f0*0.5;
+  subg.gain.setValueAtTime(0.0001, now);
+  subg.gain.linearRampToValueAtTime(0.22, now+0.6);
+  subg.gain.exponentialRampToValueAtTime(0.0001, now+17);
+  sub.connect(subg); subg.connect(lp); sub.start(now); sub.stop(now+17.5);
+  // percusión inicial del mazo, breve y sorda (no metálica)
   const n = c.createBufferSource(); n.buffer = noiseBuf(c,'brown');
   const ng = c.createGain(), nf = c.createBiquadFilter();
-  nf.type='bandpass'; nf.frequency.value=260; nf.Q.value=1.2;
-  ng.gain.setValueAtTime(0.5, now); ng.gain.exponentialRampToValueAtTime(0.0001, now+0.7);
+  nf.type='lowpass'; nf.frequency.value=340; nf.Q.value=.7;
+  ng.gain.setValueAtTime(0.55, now); ng.gain.exponentialRampToValueAtTime(0.0001, now+0.9);
   n.connect(nf); nf.connect(ng); ng.connect(lp); n.start(now); n.stop(now+1);
 }
 
@@ -753,6 +784,47 @@ volEl.addEventListener('input', ()=>{
   store.set('mf.vol', +volEl.value);
   if(ambMaster) ambMaster.gain.value = volEl.value/100*0.9;
 });
+
+/* ============ MÚSICA (pistas reales) ============ */
+const MUSIC_BASE = 'https://raw.githubusercontent.com/mr171179/M_Mindfulness/main/AUDIOS%20EXTRA/';
+const MUSIC = [
+  { name:'Ecos del espíritu (OM Chanting)', file:'alex-morgan-ancient-spirit-echoes-om-chanting-548648.mp3' },
+  { name:'Meditación budista', file:'atlasaudio-buddhist-meditation-588150.mp3' },
+  { name:'Mantra Om Namah Shivaya (432 Hz)', file:'blubonrelaxon-aumom-namah-shivaya-mantra-chants-432-hz-8940.mp3' },
+  { name:'Música sanadora profunda (432 Hz)', file:'denis-pavlov-music-deep-healing-music-432-hz-meditation-sleep-193260.mp3' },
+  { name:'Mantra', file:'leberch-mantra-587953.mp3' },
+];
+const musicAudio = new Audio();
+musicAudio.loop = true;
+let musicOn = null;
+
+document.getElementById('musicList').innerHTML = MUSIC.map((m,i)=>
+  `<div class="music-track" id="mtrack-${i}">
+     <button class="mp" onclick="toggleMusic(${i})" aria-label="Reproducir">
+       <svg id="mpIcon-${i}" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+     </button>
+     <div class="m-info"><div class="m-name">${m.name}</div><div class="m-tag">Bucle · pista libre de derechos</div></div>
+   </div>`).join('');
+
+function toggleMusic(i){
+  if(musicOn === i){
+    musicAudio.pause();
+    document.getElementById(`mtrack-${i}`).classList.remove('on');
+    document.getElementById(`mpIcon-${i}`).innerHTML = '<path d="M8 5v14l11-7z"/>';
+    musicOn = null;
+    return;
+  }
+  if(musicOn !== null){
+    document.getElementById(`mtrack-${musicOn}`).classList.remove('on');
+    document.getElementById(`mpIcon-${musicOn}`).innerHTML = '<path d="M8 5v14l11-7z"/>';
+  }
+  musicAudio.src = MUSIC_BASE + MUSIC[i].file;
+  musicAudio.currentTime = 0;
+  musicAudio.play().catch(()=>toast('No se pudo reproducir esta pista.'));
+  document.getElementById(`mtrack-${i}`).classList.add('on');
+  document.getElementById(`mpIcon-${i}`).innerHTML = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+  musicOn = i;
+}
 
 /* ============ MINUTERO ============ */
 const PRESETS = [3,5,10,15,20,30,45];
