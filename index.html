@@ -98,6 +98,7 @@ nav button.on{color:var(--brass)}
   width:22px;text-align:center;flex:none;
 }
 .track .name{flex:1;font-size:14.5px;line-height:1.35;min-width:0}
+.track .name .t-desc{display:block;font-size:11.5px;color:var(--dim-solid);margin-top:2px;font-weight:400}
 .track.done .name{color:var(--dim-solid)}
 .check{
   width:26px;height:26px;flex:none;border-radius:50%;
@@ -362,10 +363,11 @@ textarea{
   <div class="sheet-in">
     <h2>Contenido del curso</h2>
     <p>Una línea por audio, con este formato:<br>
-    <code>tipo | título | enlace</code></p>
+    <code>tipo | título | enlace | descripción (opcional)</code></p>
     <p style="margin-top:10px">
     Usa <code>S</code> para las sesiones (cuentan para el progreso),
     <code>W</code> para la bienvenida y <code>F</code> para preguntas frecuentes.<br>
+    La descripción es opcional y aparece debajo del título, en pequeño.<br>
     Los enlaces de Google Drive se convierten solos: pega el enlace de compartir tal cual.</p>
     <textarea id="editArea" spellcheck="false"></textarea>
     <div class="sheet-actions">
@@ -513,9 +515,10 @@ function renderCourse(){
 function trackHTML(t, idx){
   const id = idOf(t);
   const cls = (done.has(id)?' done':'') + (currentId===id?' playing':'');
+  const desc = t.desc ? `<span class="t-desc">${escapeHTML(t.desc)}</span>` : '';
   return `<div class="track${cls}">
     <span class="idx">${idx || '·'}</span>
-    <span class="name" onclick="play('${id}')">${escapeHTML(t.title)}</span>
+    <span class="name" onclick="play('${id}')">${escapeHTML(t.title)}${desc}</span>
     <button class="check" onclick="toggleDone('${id}')" aria-label="Marcar como completado">
       <svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
     </button>
@@ -573,7 +576,7 @@ function fmt(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+Str
 /* editor */
 function openEditor(){
   document.getElementById('editArea').value =
-    tracks.map(t=>`${t.type} | ${t.title} | ${t.url}`).join('\n');
+    tracks.map(t=>`${t.type} | ${t.title} | ${t.url}${t.desc ? ' | '+t.desc : ''}`).join('\n');
   document.getElementById('sheet').classList.add('open');
 }
 function closeEditor(){ document.getElementById('sheet').classList.remove('open'); }
@@ -586,7 +589,7 @@ function saveEditor(){
     if(p.length < 2) continue;
     const t0 = p[0].toLowerCase();
     const type = /^w/.test(t0) ? 'W' : /^f/.test(t0) ? 'F' : 'S';
-    out.push({ type, title: p[1] || 'Sin título', url: p[2] || '' });
+    out.push({ type, title: p[1] || 'Sin título', url: p[2] || '', desc: p[3] || '' });
   }
   tracks = out; store.set('mf.tracks', tracks);
   closeEditor(); renderCourse(); toast('Contenido guardado');
@@ -618,38 +621,39 @@ function reverb(c, out){
   return inp;
 }
 
-/* --- gong tibetano --- */
+/* --- cuenco / gong tibetano --- */
 function gong(vol=0.9){
   const c = AC(), now = c.currentTime;
   const out = c.createGain(); out.gain.value = vol; out.connect(c.destination);
-  const lp = c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=780; lp.Q.value=.4; lp.connect(out);
-  const rv = reverb(c, out); lp.connect(rv);
-  const f0 = 58; // más grave, menos "campana de cocina"
-  // parciales inarmónicos pero suaves, con decaimientos largos escalonados
-  [1,1.19,1.71,2.35,2.98,3.94,5.12,6.6].forEach((p,i)=>{
-    const o = c.createOscillator(), g = c.createGain();
-    o.type='sine'; o.frequency.value = f0*p*(1+(Math.random()-.5)*.004);
-    const amp = 0.75/Math.pow(i+1.35,1.05);
-    const attack = 0.35 + i*0.05;      // ataque progresivo: primero grave, luego brillo
-    const dur = 16 - i*0.9;             // cola larga, hasta 16s
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(amp, now+attack);
-    g.gain.exponentialRampToValueAtTime(0.0001, now+dur);
-    o.connect(g); g.connect(lp); o.start(now); o.stop(now+dur+0.5);
+  const shape = c.createBiquadFilter(); shape.type='lowpass'; shape.Q.value=.3;
+  shape.frequency.setValueAtTime(4200, now);
+  shape.frequency.exponentialRampToValueAtTime(420, now+9);
+  shape.connect(out);
+  const rv = reverb(c, out); shape.connect(rv);
+
+  const f0 = 216; // rango típico de cuenco cantor
+  // parciales reales de un cuenco: pares muy cercanos entre sí -> laten (shimmer)
+  const partials = [
+    [1.000, 1.006], [2.42, 2.431], [3.88, 3.895], [5.61, 5.628], [7.4, 7.42]
+  ];
+  partials.forEach(([a,b], i)=>{
+    const amp = 0.5/Math.pow(i+1,0.95);
+    const dur = 18 - i*1.4;
+    [a,b].forEach(mult=>{
+      const o = c.createOscillator(), g = c.createGain();
+      o.type='sine'; o.frequency.value = f0*mult;
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.linearRampToValueAtTime(amp*0.5, now+0.05+i*0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now+dur);
+      o.connect(g); g.connect(shape); o.start(now); o.stop(now+dur+0.5);
+    });
   });
-  // cuerpo grave sostenido, muy suave, para dar "duración" perceptible
-  const sub = c.createOscillator(), subg = c.createGain();
-  sub.type='sine'; sub.frequency.value = f0*0.5;
-  subg.gain.setValueAtTime(0.0001, now);
-  subg.gain.linearRampToValueAtTime(0.22, now+0.6);
-  subg.gain.exponentialRampToValueAtTime(0.0001, now+17);
-  sub.connect(subg); subg.connect(lp); sub.start(now); sub.stop(now+17.5);
-  // percusión inicial del mazo, breve y sorda (no metálica)
+  // golpe del mazo: transitorio corto, sordo, sin metal
   const n = c.createBufferSource(); n.buffer = noiseBuf(c,'brown');
   const ng = c.createGain(), nf = c.createBiquadFilter();
-  nf.type='lowpass'; nf.frequency.value=340; nf.Q.value=.7;
-  ng.gain.setValueAtTime(0.55, now); ng.gain.exponentialRampToValueAtTime(0.0001, now+0.9);
-  n.connect(nf); nf.connect(ng); ng.connect(lp); n.start(now); n.stop(now+1);
+  nf.type='lowpass'; nf.frequency.value=900; nf.Q.value=.6;
+  ng.gain.setValueAtTime(0.4, now); ng.gain.exponentialRampToValueAtTime(0.0001, now+0.35);
+  n.connect(nf); nf.connect(ng); ng.connect(shape); n.start(now); n.stop(now+0.5);
 }
 
 /* --- sonidos ambientales --- */
